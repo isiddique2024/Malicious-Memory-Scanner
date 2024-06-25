@@ -7,12 +7,13 @@ The scanner takes the Process ID of the process you want to scan as a command-li
 
 ## Features
 
-- **Signature Scanning**: Scans RWX (Read-Write-Execute) regions for known malicious signatures.
 - **Command-Line Interface**: Simple CLI for specifying the process ID to scan.
+- **Signature Scanning**: Scans RWX (Read-Write-Execute) regions for known malicious signatures.
 - **Unverified Module Reporting**: Any loaded module without a valid signature will be reported.
 - **Memory Dumps**: Dumps detected malicious implants into a folder called "malicious_dumps"
 
 ## Usage
+
     scanner.exe <PID> 
 
 ## Planned Features
