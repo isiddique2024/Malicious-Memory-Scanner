@@ -158,7 +158,7 @@ namespace util
         }
     }
 
-    auto remove_duplicates_vector(std::vector<std::tuple<MEMORY_BASIC_INFORMATION, MEMORY_REGION_INFORMATION, std::optional<std::string>>>& vec) -> void
+    auto remove_duplicates_vector(types::memory_data_list& vec) -> void
     {
         auto compare = [](const auto& lhs, const auto& rhs) {
             return std::get<2>(lhs) < std::get<2>(rhs);
