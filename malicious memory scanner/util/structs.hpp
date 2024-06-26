@@ -7,7 +7,6 @@
 #include <ntstatus.h>
 #include <intrin.h> 
 
-
 #define NT_SUCCESS(Status)      ((NTSTATUS)(Status) >= 0)
 
 #define NtCurrentProcess        ((HANDLE)(LONG_PTR)-1)
@@ -29,8 +28,6 @@
          (p)->SecurityDescriptor = s; \
          (p)->SecurityQualityOfService = NULL; \
      } while (0)
-
-
 
 typedef struct _CLIENT_ID
 {

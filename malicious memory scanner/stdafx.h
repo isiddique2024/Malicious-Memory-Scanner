@@ -7,6 +7,7 @@
 #include <unordered_map>
 #include <direct.h>
 #include <vector>
+#include <set>
 #include <algorithm>
 #include <psapi.h>
 #include <tlhelp32.h>
@@ -21,3 +22,4 @@
 #include "util/shadow_syscall.hpp"
 #include "util/li.hpp"
 #include "util/util.hpp"
+#include "util/types.hpp"

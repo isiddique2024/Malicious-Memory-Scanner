@@ -1,7 +1,7 @@
 namespace util 
 {
 
-    __forceinline auto open_process(unsigned long pid, void*& handle) -> NTSTATUS 
+    auto open_process(unsigned long pid, void*& handle) -> NTSTATUS 
     {
         CLIENT_ID cid;
         cid.UniqueProcess = reinterpret_cast<HANDLE>(pid);
@@ -14,14 +14,15 @@ namespace util
 
         return status;
     }
-    __forceinline auto sleep(unsigned long milliseconds) -> void
+    auto sleep(unsigned long milliseconds) -> void
     {
         LARGE_INTEGER interval;
         interval.QuadPart = -(LONGLONG)milliseconds * 10000LL;
         sys(NTSTATUS, NtDelayExecution).cached_call(FALSE, &interval);
     }
 
-    __forceinline std::string device_path_to_dos_path(const std::string& device_path) {
+    auto device_path_to_dos_path(const auto& device_path) -> std::string
+    {
         char drive[3] = " :";
         std::string dos_path;
         for (drive[0] = 'A'; drive[0] <= 'Z'; drive[0]++) {
@@ -39,17 +40,19 @@ namespace util
         return device_path;
     }
 
-    __forceinline std::string wstring_to_string(const std::wstring& wstr) {
+    auto wstring_to_string(const auto& wstr) -> std::string
+    {
         std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
         return converter.to_bytes(wstr);
     }
 
-    __forceinline std::wstring string_to_wstring(const std::string& str) {
+    auto string_to_wstring(const auto& str) -> std::wstring
+    {
         std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
         return converter.from_bytes(str);
     }
 
-    __forceinline auto get_remote_module_handle(unsigned long pid) -> HMODULE
+    auto get_remote_module_handle(unsigned long pid) -> HMODULE
     {
         HANDLE hModuleSnap = INVALID_HANDLE_VALUE;
         MODULEENTRY32 me32;
@@ -80,7 +83,7 @@ namespace util
         return mainModuleHandle;
     }
 
-    __forceinline auto ida_pattern_scan(void* proc_handle, uintptr_t base, uintptr_t image_size, const char* signature) -> uintptr_t
+    auto ida_pattern_scan(void* proc_handle, uintptr_t base, uintptr_t image_size, const char* signature) -> uintptr_t
     {
         static auto pattern_to_byte = [](const char* pattern)
             {
@@ -137,7 +140,7 @@ namespace util
         return 0;
     }
 
-    __forceinline auto enable_console_color_support() {
+    auto enable_console_color_support() {
         HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
         if (hConsole == INVALID_HANDLE_VALUE) {
             std::cerr << "Failed to get console handle" << std::endl;
@@ -155,10 +158,18 @@ namespace util
         }
     }
 
-    __forceinline auto remove_duplicates_vector(std::vector<std::tuple<uintptr_t, SIZE_T>>& vec) -> void
+    auto remove_duplicates_vector(std::vector<std::tuple<MEMORY_BASIC_INFORMATION, MEMORY_REGION_INFORMATION, std::optional<std::string>>>& vec) -> void
     {
-        std::sort(vec.begin(), vec.end());
-        const auto last = std::unique(vec.begin(), vec.end());
+        auto compare = [](const auto& lhs, const auto& rhs) {
+            return std::get<2>(lhs) < std::get<2>(rhs);
+        };
+
+        auto equal = [](const auto& lhs, const auto& rhs) {
+            return std::get<2>(lhs) == std::get<2>(rhs);
+        };
+
+        std::sort(vec.begin(), vec.end(), compare);
+        auto last = std::unique(vec.begin(), vec.end(), equal);
         vec.erase(last, vec.end());
     }
 

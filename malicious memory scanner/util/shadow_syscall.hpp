@@ -772,15 +772,6 @@ namespace shadow_syscall {
 			0x48, 0xC7, 0xC0, 0x3F, 0x10, 0x00, 0x00,   // mov rax, syscall_index
 			0x0F, 0x05,                                 // syscall
 			0xC3,                                       // ret
-			0x90, 0x90,             // nop, nop
-			0x01, 0xC0,             // add eax, eax
-			0x29, 0xC0,             // sub eax, eax
-			0x89, 0xC3,             // mov ebx, eax
-			0x31, 0xC9,             // xor ecx, ecx
-			0x90, 0x90,             // nop, nop
-			0x42,                   // inc edx
-			0x4A,                   // dec edx
-			0x90, 0x90              // nop, nop
 		};
 
 #if INLINE_VARIABLES

@@ -21,8 +21,28 @@ int main(int argc, char* argv[])
         return 0;
     }
 
+    util::enable_console_color_support();
+
+    std::cout << encrypt("Starting scan on PID: ") << pid << std::endl;
+
     implants_scanner scanner(proc_handle, pid);
-    scanner.scan_manual_map();
+    auto malicious_data = scanner.full_scan();
+
+    if (malicious_data.empty()) {
+        std::cout << encrypt("Done Scanning: ") << encrypt("No Malicious Regions Found").decrypt() << std::endl;
+        return 0;
+    }
+
+    util::remove_duplicates_vector(malicious_data);
+
+    std::cout << encrypt("Done Scanning: ") <<
+        (encrypt("Number of Potentially Malicious Regions Found: ").decrypt() + std::to_string(malicious_data.size()))
+        << std::endl;
+
+    std::cout << encrypt("Dumping Memory Regions:") << std::endl;
+
+    report::print_malicious_regions(malicious_data);
+    report::dump_malicious_regions(proc_handle, pid, malicious_data);
 
     sys(NTSTATUS, NtClose).call(proc_handle);
 

@@ -1,10 +1,10 @@
 
-__forceinline bool calc_hash(HANDLE file_handle, unsigned char** hash, unsigned long* hash_size) {
+auto calc_hash(void* file_handle, unsigned char** hash, unsigned long* hash_size) -> bool
+{
+    CryptCATAdminCalcHashFromFileHandle(file_handle, hash_size, nullptr, 0);
+    *hash = new unsigned char[*hash_size];
 
-    *hash_size = 0;
-    CryptCATAdminCalcHashFromFileHandle(file_handle, hash_size, 0, 0);
-    *hash = new BYTE[*hash_size];
-    if (!(CryptCATAdminCalcHashFromFileHandle)(file_handle, hash_size, *hash, 0)) {
+    if (!CryptCATAdminCalcHashFromFileHandle(file_handle, hash_size, *hash, 0)) {
         delete[] * hash;
         return false;
     }
@@ -12,27 +12,27 @@ __forceinline bool calc_hash(HANDLE file_handle, unsigned char** hash, unsigned 
     return true;
 }
 
-__forceinline bool verify_catalog(BYTE* hash, DWORD hashSize) {
-    auto cat_admin = HCATADMIN{};
+auto verify_catalog(unsigned char* hash, unsigned long hash_size) -> bool
+{
+    HCATADMIN cat_admin{};
     if (!CryptCATAdminAcquireContext(&cat_admin, 0, 0)) {
-        return 0;
+        return false;
     }
 
-    bool has_catalog_signature = false;
+    CATALOG_INFO catalog_info_{};
+    auto catalog_info = CryptCATAdminEnumCatalogFromHash(cat_admin, hash, hash_size, 0, nullptr);
 
-    if (const auto catalog_info = CryptCATAdminEnumCatalogFromHash(cat_admin, hash, hashSize, 0, nullptr); catalog_info != nullptr) 
-    {
-        auto catalog_info_ = CATALOG_INFO{};
+    bool has_catalog_signature = catalog_info && CryptCATCatalogInfoFromContext(catalog_info, &catalog_info_, 0);
 
-        has_catalog_signature = CryptCATCatalogInfoFromContext(catalog_info, &catalog_info_, 0);
-
+    if (catalog_info) {
         CryptCATAdminReleaseCatalogContext(cat_admin, catalog_info, 0);
     }
 
     return has_catalog_signature;
 }
 
-__forceinline bool verify_dll(const std::wstring& file_name) {
+auto verify_dll(const std::wstring& file_name) -> bool
+{
 
     //first we'll verify using WinVerifyTrust, if it fails (it does on specific modules like uxtheme.dll), then we'll verify the catalog signature.
     //if the catalog signature fails then it's unsigned
@@ -59,12 +59,12 @@ __forceinline bool verify_dll(const std::wstring& file_name) {
         return 1;
     }
 
-    BYTE* hash = nullptr;
-    DWORD hashSize = 0;
+    unsigned char* hash = nullptr;
+    unsigned long hash_size = 0;
 
     bool ret = 0;
-    if (calc_hash(file_handle, &hash, &hashSize)) {
-        ret = verify_catalog(hash, hashSize);
+    if (calc_hash(file_handle, &hash, &hash_size)) {
+        ret = verify_catalog(hash, hash_size);
     }
 
     sys(NTSTATUS, NtClose).call(file_handle);

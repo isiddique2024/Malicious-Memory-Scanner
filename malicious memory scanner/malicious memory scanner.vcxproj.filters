@@ -53,5 +53,11 @@
     <ClInclude Include="verification\verification.hpp">
       <Filter>Header Files\verification</Filter>
     </ClInclude>
+    <ClInclude Include="scanner\report.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="util\types.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
