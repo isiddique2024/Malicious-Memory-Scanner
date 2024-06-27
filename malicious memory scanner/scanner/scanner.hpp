@@ -27,16 +27,9 @@ class implants_scanner
     void* proc_handle;
     unsigned long pid;
 
-    types::memory_data_list malicious_regions;
+    types::report_list malicious_regions;
 
-    bool found_malicious_page = false;
-
-    std::unordered_map<std::string, std::string> pattern_map = {
-        {"CRT_DLL_STUB", encrypt("48 8B C4 48 89 58 20 4C 89 40 18 89 50 10 48 89 48 08 56 57 41 56 48 83 EC 40 49 8B F0 8B FA 4C 8B F1 85 D2 75 0F 39 15 ? ? ? ? 7F 07 33 C0 E9 ? ? ? ?").decrypt()},
-        {"DLL_MANIFEST_STUB", encrypt("3C 3F 78 6D 6C 20 76 65 72 73 69 6F 6E").decrypt()}
-    };
-
-    auto is_matching_type(const MEMORY_BASIC_INFORMATION& mbi) -> bool
+    auto is_executable_memory(const MEMORY_BASIC_INFORMATION& mbi) -> bool
     {
         bool shared = (mbi.Type == MEM_IMAGE) || (mbi.Type == MEM_MAPPED);
         bool non_shared = (mbi.Type == MEM_PRIVATE);
@@ -44,37 +37,43 @@ class implants_scanner
         return
             (non_shared && (mbi.Protect == PAGE_EXECUTE)) ||                                         // Executable. (MEM_PRIVATE && PAGE_EXECUTE)
             (non_shared && (mbi.Protect == PAGE_EXECUTE_READ)) ||                                    // Executable and read-only. (MEM_PRIVATE && PAGE_EXECUTE_READ)
-            (shared && (mbi.Protect == PAGE_EXECUTE_READWRITE)) ||                                   // Executable and read/write. (including shared)
+            ((non_shared || shared) && (mbi.Protect == PAGE_EXECUTE_READWRITE)) ||                   // Executable and read/write. (including shared)
             (non_shared && (mbi.Protect == PAGE_EXECUTE_WRITECOPY)) ||                               // Executable and copy-on-write. (MEM_PRIVATE && PAGE_EXECUTE_WRITECOPY)
             (non_shared && (mbi.Protect == (PAGE_EXECUTE | PAGE_NOCACHE))) ||                        // Non-cacheable and executable. (MEM_PRIVATE && PAGE_EXECUTE | PAGE_NOCACHE)
             (non_shared && (mbi.Protect == (PAGE_EXECUTE_READ | PAGE_NOCACHE))) ||                   // Non-cacheable, executable, and read-only. (MEM_PRIVATE && PAGE_EXECUTE_READ | PAGE_NOCACHE)
-            (shared && (mbi.Protect == (PAGE_EXECUTE_READWRITE | PAGE_NOCACHE))) ||                  // Non-cacheable, executable, and read/write. (including shared)
+            ((non_shared || shared) && (mbi.Protect == (PAGE_EXECUTE_READWRITE | PAGE_NOCACHE))) ||                  // Non-cacheable, executable, and read/write. (including shared)
             (non_shared && (mbi.Protect == (PAGE_EXECUTE_WRITECOPY | PAGE_NOCACHE))) ||              // Non-cacheable, executable, and copy-on-write. (MEM_PRIVATE && PAGE_EXECUTE_WRITECOPY | PAGE_NOCACHE)
             (non_shared && (mbi.Protect == (PAGE_EXECUTE | PAGE_GUARD))) ||                          // Guard page and executable. (MEM_PRIVATE && PAGE_EXECUTE | PAGE_GUARD)
             (non_shared && (mbi.Protect == (PAGE_EXECUTE_READ | PAGE_GUARD))) ||                     // Guard page, executable, and read-only. (MEM_PRIVATE && PAGE_EXECUTE_READ | PAGE_GUARD)
-            (shared && (mbi.Protect == (PAGE_EXECUTE_READWRITE | PAGE_GUARD))) ||                    // Guard page, executable, and read/write. (including shared)
+            ((non_shared || shared) && (mbi.Protect == (PAGE_EXECUTE_READWRITE | PAGE_GUARD))) ||                    // Guard page, executable, and read/write. (including shared)
             (non_shared && (mbi.Protect == (PAGE_EXECUTE_WRITECOPY | PAGE_GUARD))) ||                // Guard page, executable, and copy-on-write. (MEM_PRIVATE && PAGE_EXECUTE_WRITECOPY | PAGE_GUARD)
             (non_shared && (mbi.Protect == (PAGE_EXECUTE | PAGE_NOCACHE | PAGE_GUARD))) ||           // Non-cacheable, guard page, and executable. (MEM_PRIVATE && PAGE_EXECUTE | PAGE_NOCACHE | PAGE_GUARD)
             (non_shared && (mbi.Protect == (PAGE_EXECUTE_READ | PAGE_NOCACHE | PAGE_GUARD))) ||      // Non-cacheable, guard page, executable, and read-only. (MEM_PRIVATE && PAGE_EXECUTE_READ | PAGE_NOCACHE | PAGE_GUARD)
-            (shared && (mbi.Protect == (PAGE_EXECUTE_READWRITE | PAGE_NOCACHE | PAGE_GUARD))) ||     // Non-cacheable, guard page, executable, and read/write. (including shared)
-            (non_shared && (mbi.Protect == (PAGE_EXECUTE_WRITECOPY | PAGE_NOCACHE | PAGE_GUARD)));   // Non-cacheable, guard page, executable, and copy-on-write. (MEM_PRIVATE && PAGE_EXECUTE_WRITECOPY | PAGE_NOCACHE | PAGE_GUARD)
+            ((non_shared || shared) && (mbi.Protect == (PAGE_EXECUTE_READWRITE | PAGE_NOCACHE | PAGE_GUARD)))     // Non-cacheable, guard page, executable, and read/write. (including shared)
+            ;   // Non-cacheable, guard page, executable, and copy-on-write. (MEM_PRIVATE && PAGE_EXECUTE_WRITECOPY | PAGE_NOCACHE | PAGE_GUARD)
     }
 
-    auto get_region_info(PVOID addr) -> types::memory_data
+    auto make_report(void* addr) -> types::report
     {
         MEMORY_BASIC_INFORMATION mbi;
         auto mbi_status = sys(NTSTATUS, NtQueryVirtualMemory).call(proc_handle, addr, MemoryBasicInformation, &mbi, sizeof(mbi), nullptr);
 
         MEMORY_REGION_INFORMATION mri;
         auto mri_status = sys(NTSTATUS, NtQueryVirtualMemory).call(proc_handle, addr, MemoryRegionInformation, &mri, sizeof(mri), nullptr);
-        return std::make_tuple(mbi, mri, std::optional<std::string>());
+
+        types::report report = {};
+
+        report.mbi = mbi;
+        report.mri = mri;
+
+        return report;
     }
 
     public: 
 
     implants_scanner(void* proc_handle, unsigned long pid) : proc_handle(proc_handle), pid(pid) {};
 
-    auto full_scan() -> types::memory_data_list
+    auto full_scan() -> types::report_list
     {
         auto mod = util::get_remote_module_handle(pid);
         MODULEINFO mod_info;
@@ -130,12 +129,17 @@ class implants_scanner
                         std::string file_name = util::device_path_to_dos_path(util::wstring_to_string(mfn.Buffer));
 
                         if (!verify_dll(util::string_to_wstring(file_name).c_str())) {
-                            auto info = get_region_info(reinterpret_cast<void*>(curr_addr));
-                            auto base = std::get<0>(info).AllocationBase;
-                            auto commit_size = std::get<1>(info).CommitSize;
-                            std::get<2>(info) = file_name;
-                            std::cout << encrypt("unsigned module loaded: ") << std::get<2>(info).value() << std::endl;
-                            malicious_regions.push_back(info);
+                            auto report = make_report(reinterpret_cast<void*>(curr_addr));
+                            report.dll_path = file_name;
+
+                            signatures::find_packer_signatures(proc_handle, report);
+
+                            report.valid_header = util::found_header(proc_handle, report);
+
+                            malicious_regions.push_back(report);
+
+                            std::cout << encrypt("unsigned module loaded: ") << report.dll_path.value() << std::endl;
+
                         }
                     }
                 }
@@ -147,24 +151,19 @@ class implants_scanner
             auto scan_executable_pages = [&]()
             {
 
-                if (is_matching_type(mbi))
+                if (is_executable_memory(mbi))
                 {
-                    auto info = get_region_info(mbi.BaseAddress);
-                    
-                    for (auto const& [type, signature] : pattern_map) {
-                        auto allocation_address = reinterpret_cast<uintptr_t>(std::get<1>(info).AllocationBase);
-                        auto size_of_region = std::get<1>(info).CommitSize;
-                        auto addr = util::ida_pattern_scan(proc_handle, allocation_address, size_of_region, signature.c_str());
+                    auto report = make_report(mbi.BaseAddress);
 
-                        if (!addr) 
-                            continue;
+                    bool found_signature = signatures::find_dll_signatures(proc_handle, report);
+                    bool found_packer = signatures::find_packer_signatures(proc_handle, report);
+                    if (found_signature || found_packer || report.pageguard_or_noaccess) {
 
-                        malicious_regions.push_back(info);
+                        report.valid_header = util::found_header(proc_handle, report);
 
-                        std::cout << type << encrypt(" stub ") << encrypt("found at address : 0x") << addr << std::endl;
-
+                        malicious_regions.push_back(report);
                     }
-
+           
                 }
             };
 
@@ -172,7 +171,6 @@ class implants_scanner
 
             curr_addr = reinterpret_cast<uintptr_t>(mbi.BaseAddress) + mbi.RegionSize;
 
-            util::sleep(1);
         }
 
         return malicious_regions;

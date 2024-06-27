@@ -56,7 +56,10 @@
     <ClInclude Include="scanner\report.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="util\types.hpp">
+    <ClInclude Include="scanner\types.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="scanner\signatures.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

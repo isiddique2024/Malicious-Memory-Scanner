@@ -83,7 +83,7 @@ namespace util
         return mainModuleHandle;
     }
 
-    auto ida_pattern_scan(void* proc_handle, uintptr_t base, uintptr_t image_size, const char* signature) -> uintptr_t
+    __forceinline auto ida_pattern_scan(void* proc_handle, types::report& report, const char* signature) -> uintptr_t
     {
         static auto pattern_to_byte = [](const char* pattern)
             {
@@ -111,18 +111,23 @@ namespace util
         auto pattern_bytes = pattern_to_byte(signature);
         auto pattern_length = pattern_bytes.size();
         auto data = pattern_bytes.data();
-        std::vector<char> bytes_buffer(image_size);
+        std::vector<char> bytes_buffer(report.mri.CommitSize);
 
-        auto status = sys(NTSTATUS, NtReadVirtualMemory).call(proc_handle, base, bytes_buffer.data(), image_size, NULL);
+        auto status = sys(NTSTATUS, NtReadVirtualMemory).call(proc_handle, report.mri.AllocationBase, bytes_buffer.data(), report.mri.CommitSize, NULL);
         if (!NT_SUCCESS(status))
         {
-            std::cerr << encrypt("Failed to read memory at address: 0x") << std::hex << base
+            if (status == 0x8000000d)
+            {
+                report.pageguard_or_noaccess = true;
+            }
+
+            std::cerr << encrypt("Failed to read memory at address: 0x") << std::hex << report.mri.AllocationBase
                 << encrypt(", Error Code: ") << status << std::endl;
-            /*std::cerr << encrypt("Failed to read virtual memory, potential PAGE_GUARD or PAGE_NOACCESS flag found, Error Status:") << status << std::endl;*/
+
             return 0;
         }
 
-        for (uintptr_t i = 0; i <= image_size - pattern_length; i++)
+        for (uintptr_t i = 0; i <= report.mri.CommitSize - pattern_length; i++)
         {
             bool found = true;
             for (uintptr_t j = 0; j < pattern_length; j++)
@@ -133,14 +138,34 @@ namespace util
             }
             if (found)
             {
-                return base + i;
+                return reinterpret_cast<uintptr_t>(report.mri.AllocationBase) + i;
             }
         }
 
         return 0;
     }
 
-    auto enable_console_color_support() {
+
+    auto found_header(void* process_handle, types::report& report) -> bool
+    {
+        unsigned char buffer[0x1000]; // size of PE header
+        auto base = report.mbi.AllocationBase;
+        if (!NT_SUCCESS(sys(NTSTATUS, NtReadVirtualMemory).call(process_handle, base, buffer, sizeof(buffer), nullptr))) {
+            std::cerr << "Failed to read memory at address: " << base << "\n";
+            return false;
+        }
+
+        auto header = reinterpret_cast<PIMAGE_DOS_HEADER>(buffer);
+        if (header->e_magic != IMAGE_DOS_SIGNATURE) {
+            std::cerr << "Invalid PE header" << std::endl;
+            return false;
+        }
+
+        return true;
+    }
+
+    auto enable_console_color_support() -> void
+    {
         HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
         if (hConsole == INVALID_HANDLE_VALUE) {
             std::cerr << "Failed to get console handle" << std::endl;
@@ -155,22 +180,23 @@ namespace util
         mode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
         if (!SetConsoleMode(hConsole, mode)) {
             std::cerr << "Failed to set console mode" << std::endl;
+            return;
         }
     }
 
-    auto remove_duplicates_vector(types::memory_data_list& vec) -> void
+    auto remove_duplicates_vector(types::report_list& report) -> void
     {
         auto compare = [](const auto& lhs, const auto& rhs) {
-            return std::get<2>(lhs) < std::get<2>(rhs);
+            return lhs.dll_path < rhs.dll_path;
         };
 
         auto equal = [](const auto& lhs, const auto& rhs) {
-            return std::get<2>(lhs) == std::get<2>(rhs);
+            return lhs.dll_path == rhs.dll_path;
         };
 
-        std::sort(vec.begin(), vec.end(), compare);
-        auto last = std::unique(vec.begin(), vec.end(), equal);
-        vec.erase(last, vec.end());
+        std::sort(report.begin(), report.end(), compare);
+        auto last = std::unique(report.begin(), report.end(), equal);
+        report.erase(last, report.end());
     }
 
 

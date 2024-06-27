@@ -23,7 +23,7 @@ int main(int argc, char* argv[])
 
     util::enable_console_color_support();
 
-    std::cout << encrypt("Starting scan on PID: ") << pid << std::endl;
+    std::cout << encrypt("Starting full image scan on PID: ") << pid << std::endl;
 
     implants_scanner scanner(proc_handle, pid);
     auto malicious_data = scanner.full_scan();
@@ -33,13 +33,13 @@ int main(int argc, char* argv[])
         return 0;
     }
 
-    util::remove_duplicates_vector(malicious_data);
+    util::remove_duplicates_vector(malicious_data); // removes duplicates for same dll path
 
     std::cout << encrypt("Done Scanning: ") <<
         (encrypt("Number of Potentially Malicious Regions Found: ").decrypt() + std::to_string(malicious_data.size()))
         << std::endl;
 
-    std::cout << encrypt("Dumping Memory Regions:") << std::endl;
+    std::cout << encrypt("\nDumping Memory Regions:") << std::endl;
 
     report::print_malicious_regions(malicious_data);
     report::dump_malicious_regions(proc_handle, pid, malicious_data);

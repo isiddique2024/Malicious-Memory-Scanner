@@ -139,13 +139,14 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="scanner\report.hpp" />
+    <ClInclude Include="scanner\signatures.hpp" />
     <ClInclude Include="util\encrypt.hpp" />
     <ClInclude Include="util\li.hpp" />
     <ClInclude Include="scanner\scanner.hpp" />
     <ClInclude Include="util\shadow_syscall.hpp" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="util\structs.hpp" />
-    <ClInclude Include="util\types.hpp" />
+    <ClInclude Include="scanner\types.hpp" />
     <ClInclude Include="util\util.hpp" />
     <ClInclude Include="verification\verification.hpp" />
   </ItemGroup>
