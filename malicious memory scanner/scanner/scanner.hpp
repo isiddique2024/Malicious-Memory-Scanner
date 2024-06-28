@@ -36,41 +36,6 @@ class implants_scanner
     std::vector<module_info> module_path_list;
     types::report_list malicious_regions;
 
-    auto is_executable_memory(const auto& protection, const auto& shared) {
-        if (!shared) 
-        {
-            switch (protection) 
-            {
-                case 2:  // Executable.
-                case 3:  // Executable and read-only.
-                case 7:  // Executable and copy-on-write.
-                case 10: // Non-cacheable and executable.
-                case 11: // Non-cacheable, executable, and read-only.
-                case 15: // Non-cacheable, executable, and copy-on-write.
-                case 18: // Guard page and executable.
-                case 19: // Guard page, executable, and read-only.
-                case 23: // Guard page, executable, and copy-on-write.
-                case 26: // Non-cacheable, guard page, and executable.
-                case 27: // Non-cacheable, guard page, executable, and read-only.
-                case 31: // Non-cacheable, guard page, executable, and copy-on-write.
-                    return true;
-                default:
-                    break;
-            }
-        }
-
-        switch (protection) 
-        {
-            case 6:  // Executable and read/write.
-            case 14: // Non-cacheable, executable, and read/write.
-            case 22: // Guard page, executable, and read/write.
-            case 30: // Non-cacheable, guard page, executable, and read/write.
-                return true;
-            default:
-                return false;
-        }
-    }
-
     auto generate_report(void* addr) -> types::report
     {
         MEMORY_BASIC_INFORMATION mbi;
@@ -109,7 +74,7 @@ class implants_scanner
 
             //std::cout << "curr address: 0x" << std::hex << current_address << std::endl;
 
-            if (is_executable_memory(protection, shared)) 
+            if (util::mem::is_executable(protection, shared)) 
             {
                 std::cout << "\033[31mExecutable Memory at Address: 0x" << std::hex << current_address << "\033[0m" << std::endl;
 

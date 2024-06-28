@@ -69,6 +69,42 @@ namespace util
     }
 
     namespace mem {
+
+        auto is_executable(const auto& protection, const auto& shared) {
+            if (!shared)
+            {
+                switch (protection)
+                {
+                case 2:  // Executable.
+                case 3:  // Executable and read-only.
+                case 7:  // Executable and copy-on-write.
+                case 10: // Non-cacheable and executable.
+                case 11: // Non-cacheable, executable, and read-only.
+                case 15: // Non-cacheable, executable, and copy-on-write.
+                case 18: // Guard page and executable.
+                case 19: // Guard page, executable, and read-only.
+                case 23: // Guard page, executable, and copy-on-write.
+                case 26: // Non-cacheable, guard page, and executable.
+                case 27: // Non-cacheable, guard page, executable, and read-only.
+                case 31: // Non-cacheable, guard page, executable, and copy-on-write.
+                    return true;
+                default:
+                    break;
+                }
+            }
+
+            switch (protection)
+            {
+            case 6:  // Executable and read/write.
+            case 14: // Non-cacheable, executable, and read/write.
+            case 22: // Guard page, executable, and read/write.
+            case 30: // Non-cacheable, guard page, executable, and read/write.
+                return true;
+            default:
+                return false;
+            }
+        }
+
         // thank you process hacker
         auto get_proc_working_set_info(void* proc_handle, PMEMORY_WORKING_SET_INFORMATION* wsi) -> NTSTATUS
         {
