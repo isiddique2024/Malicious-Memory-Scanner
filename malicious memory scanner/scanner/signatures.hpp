@@ -19,12 +19,12 @@ namespace signatures {
 
     __forceinline auto find_dll_signatures(void* proc_handle, types::report& report) -> bool
     {
-        for (auto const& [type, signature] : dll_signatures)
+        for (const auto& [type, signature] : dll_signatures)
         {
-            auto allocation_address = reinterpret_cast<uintptr_t>(report.mri.AllocationBase);
-            auto size_of_region = report.mri.CommitSize;
+            const auto allocation_address = reinterpret_cast<uintptr_t>(report.mri.AllocationBase);
+            const auto size_of_region = report.mri.CommitSize;
 
-            auto pattern_found = util::ida_pattern_scan(proc_handle, report, signature.c_str()); 
+            const auto pattern_found = util::mem::ida_pattern_scan(proc_handle, report, signature.c_str()); 
 
             if (pattern_found)
             {
@@ -38,11 +38,11 @@ namespace signatures {
         return false;
     }
 
-    __forceinline auto find_packer_signatures(void* proc_handle, types::report& report) -> bool {
-        for (auto const& [type, signature] : packer_signatures)
+    __forceinline auto find_packer_signatures(void* proc_handle, types::report& report) -> bool 
+    {
+        for (const auto& [type, signature] : packer_signatures)
         {
-
-            auto pattern_found = util::ida_pattern_scan(proc_handle, report, signature.c_str());
+            const auto pattern_found = util::mem::ida_pattern_scan(proc_handle, report, signature.c_str());
 
             if (pattern_found)
             {

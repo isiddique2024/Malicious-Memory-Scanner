@@ -1,6 +1,20 @@
 #pragma once
-namespace report {
+namespace report 
+{
+    auto remove_duplicates(auto& report) -> void
+    {
+        auto compare = [](const auto& lhs, const auto& rhs) {
+            return lhs.dll_path < rhs.dll_path;
+        };
 
+        auto equal = [](const auto& lhs, const auto& rhs) {
+            return lhs.dll_path == rhs.dll_path;
+        };
+
+        std::sort(report.begin(), report.end(), compare);
+        auto last = std::unique(report.begin(), report.end(), equal);
+        report.erase(last, report.end());
+    }
 
     auto protection_to_string(unsigned long protect) -> std::string
     {
@@ -19,7 +33,7 @@ namespace report {
             case PAGE_WRITECOMBINE: return "\033[33m WC \033[0m";
             default: return " UNKNOWN ";
         };
-    };
+    }
 
     auto type_to_string(unsigned long type) -> std::string 
     {
@@ -30,9 +44,10 @@ namespace report {
             case MEM_PRIVATE: return "No (MEM_PRIVATE)";
         };
     }
+
     auto dump_malicious_regions(void* proc_handle, unsigned long pid, types::report_list& malicious_regions) -> void
     {
-        auto dir_name = encrypt("memory_dumps").decrypt();
+        const auto dir_name = encrypt("memory_dumps").decrypt();
         auto create_dir = [&](const auto& dir_name)
         {
             return (fn(_mkdir).get()(dir_name) == 0 || errno == EEXIST) ? true : (std::cerr << "Failed to create memory dump directory: " << dir_name << std::endl, false);
@@ -46,8 +61,8 @@ namespace report {
 
         for (const auto& region : malicious_regions) 
         {
-            auto base_address = region.mbi.AllocationBase;
-            auto region_size = region.mri.CommitSize;
+            const auto base_address = region.mbi.AllocationBase;
+            const auto region_size = region.mri.CommitSize;
             std::vector<char> buffer(region_size);
             unsigned long bytes_read;
 
@@ -58,7 +73,7 @@ namespace report {
                 continue;
             }
 
-            auto file_name = std::string(dir_name) + "/" + "pid_" + std::to_string(pid) + encrypt("_dmp_").decrypt() + std::to_string(region_idx) + encrypt(".bin").decrypt();
+            const auto file_name = std::string(dir_name) + "/" + "pid_" + std::to_string(pid) + encrypt("_dmp_").decrypt() + std::to_string(region_idx) + encrypt(".bin").decrypt();
             std::ofstream dump_file(file_name, std::ios::binary);
             if (!dump_file.is_open()) {
                 std::cerr << encrypt("Failed to open dump file: ").decrypt() << file_name << std::endl;

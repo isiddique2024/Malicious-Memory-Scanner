@@ -13,15 +13,15 @@ int main(int argc, char* argv[])
 
     void* proc_handle;
 
-    const auto status = util::open_process(pid, proc_handle);
+    const auto status = util::proc::open_process(pid, proc_handle);
 
     if (!NT_SUCCESS(status)) 
     {
-        std::cerr << encrypt("Failed to open process on PID: ") << pid << " , Error Code: " << status << std::endl;
+        std::cerr << encrypt("Failed to open process on PID: ") << pid << encrypt(" , Error Code: ") << status << std::endl;
         return 0;
     }
 
-    util::enable_console_color_support();
+    util::console::enable_console_color_support();
 
     std::cout << encrypt("Starting full image scan on PID: ") << pid << std::endl;
 
@@ -33,13 +33,13 @@ int main(int argc, char* argv[])
         return 0;
     }
 
-    util::remove_duplicates_vector(malicious_data); // removes duplicates for same dll path
+    report::remove_duplicates(malicious_data); // removes duplicates for same dll path
 
-    std::cout << encrypt("Done Scanning: ") <<
-        (encrypt("Number of Potentially Malicious Regions Found: ").decrypt() + std::to_string(malicious_data.size()))
-        << std::endl;
+    std::cout << std::endl << encrypt("Done Scanning: ") <<
+        (encrypt("Number of Potentially Malicious Regions Found: \033[31m").decrypt() + std::to_string(malicious_data.size()))
+        << "\033[0m" << std::endl;
 
-    std::cout << encrypt("\nDumping Memory Regions:") << std::endl;
+    std::cout << std::endl << encrypt("Memory Scan Report:") << std::endl;
 
     report::print_malicious_regions(malicious_data);
     report::dump_malicious_regions(proc_handle, pid, malicious_data);

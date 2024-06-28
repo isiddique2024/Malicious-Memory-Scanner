@@ -48,15 +48,15 @@ auto verify_dll(const std::wstring& file_name) -> bool
     trust_data.pFile = &file_info;
 
     GUID action_guid = WINTRUST_ACTION_GENERIC_VERIFY_V2;
-    auto status = WinVerifyTrust(NULL, &action_guid, &trust_data);
+    const auto status = WinVerifyTrust(NULL, &action_guid, &trust_data);
     if (status == ERROR_SUCCESS) {
          return true;
     }
 
-    auto file_handle = CreateFileW(file_name.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    const auto file_handle = CreateFileW(file_name.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
     if (file_handle == INVALID_HANDLE_VALUE) {
         std::wcerr << encrypt(L"Failed to open handle on file: ") << file_name.c_str() << std::endl;
-        return 1;
+        return true;
     }
 
     unsigned char* hash = nullptr;

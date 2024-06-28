@@ -7,6 +7,8 @@
 #include <ntstatus.h>
 #include <intrin.h> 
 
+#define LARGE_BUFFER_SIZE (1024 * 1024 * 64) // 64MB
+
 #define NT_SUCCESS(Status)      ((NTSTATUS)(Status) >= 0)
 
 #define NtCurrentProcess        ((HANDLE)(LONG_PTR)-1)
@@ -414,6 +416,24 @@ typedef struct _MEMORY_REGION_INFORMATION
     ULONG_PTR NodePreference; // 20H1
 } MEMORY_REGION_INFORMATION, * PMEMORY_REGION_INFORMATION;
 
+typedef struct _MEMORY_WORKING_SET_BLOCK
+{
+ULONG_PTR Protection : 5;
+ULONG_PTR ShareCount : 3;
+ULONG_PTR Shared : 1;
+ULONG_PTR Node : 3;
+#ifdef _WIN64
+    ULONG_PTR VirtualPage : 52;
+ #else
+ULONG VirtualPage : 20;
+#endif
+} MEMORY_WORKING_SET_BLOCK, * PMEMORY_WORKING_SET_BLOCK;
+
+typedef struct _MEMORY_WORKING_SET_INFORMATION
+{
+    ULONG_PTR NumberOfEntries;
+    MEMORY_WORKING_SET_BLOCK WorkingSetInfo[1];
+} MEMORY_WORKING_SET_INFORMATION, * PMEMORY_WORKING_SET_INFORMATION;
 
 extern "C" NTSTATUS NTAPI NtQueryInformationProcess
 (

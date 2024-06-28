@@ -27,39 +27,57 @@ class implants_scanner
     void* proc_handle;
     unsigned long pid;
 
+    struct module_info 
+    {
+        std::wstring dll_path;
+        void* address;
+    };
+
+    std::vector<module_info> module_path_list;
     types::report_list malicious_regions;
 
-    auto is_executable_memory(const MEMORY_BASIC_INFORMATION& mbi) -> bool
-    {
-        bool shared = (mbi.Type == MEM_IMAGE) || (mbi.Type == MEM_MAPPED);
-        bool non_shared = (mbi.Type == MEM_PRIVATE);
+    auto is_executable_memory(const auto& protection, const auto& shared) {
+        if (!shared) 
+        {
+            switch (protection) 
+            {
+                case 2:  // Executable.
+                case 3:  // Executable and read-only.
+                case 7:  // Executable and copy-on-write.
+                case 10: // Non-cacheable and executable.
+                case 11: // Non-cacheable, executable, and read-only.
+                case 15: // Non-cacheable, executable, and copy-on-write.
+                case 18: // Guard page and executable.
+                case 19: // Guard page, executable, and read-only.
+                case 23: // Guard page, executable, and copy-on-write.
+                case 26: // Non-cacheable, guard page, and executable.
+                case 27: // Non-cacheable, guard page, executable, and read-only.
+                case 31: // Non-cacheable, guard page, executable, and copy-on-write.
+                    return true;
+                default:
+                    break;
+            }
+        }
 
-        return
-            (non_shared && (mbi.Protect == PAGE_EXECUTE)) ||                                         // Executable. (MEM_PRIVATE && PAGE_EXECUTE)
-            (non_shared && (mbi.Protect == PAGE_EXECUTE_READ)) ||                                    // Executable and read-only. (MEM_PRIVATE && PAGE_EXECUTE_READ)
-            ((non_shared || shared) && (mbi.Protect == PAGE_EXECUTE_READWRITE)) ||                   // Executable and read/write. (including shared)
-            (non_shared && (mbi.Protect == PAGE_EXECUTE_WRITECOPY)) ||                               // Executable and copy-on-write. (MEM_PRIVATE && PAGE_EXECUTE_WRITECOPY)
-            (non_shared && (mbi.Protect == (PAGE_EXECUTE | PAGE_NOCACHE))) ||                        // Non-cacheable and executable. (MEM_PRIVATE && PAGE_EXECUTE | PAGE_NOCACHE)
-            (non_shared && (mbi.Protect == (PAGE_EXECUTE_READ | PAGE_NOCACHE))) ||                   // Non-cacheable, executable, and read-only. (MEM_PRIVATE && PAGE_EXECUTE_READ | PAGE_NOCACHE)
-            ((non_shared || shared) && (mbi.Protect == (PAGE_EXECUTE_READWRITE | PAGE_NOCACHE))) ||                  // Non-cacheable, executable, and read/write. (including shared)
-            (non_shared && (mbi.Protect == (PAGE_EXECUTE_WRITECOPY | PAGE_NOCACHE))) ||              // Non-cacheable, executable, and copy-on-write. (MEM_PRIVATE && PAGE_EXECUTE_WRITECOPY | PAGE_NOCACHE)
-            (non_shared && (mbi.Protect == (PAGE_EXECUTE | PAGE_GUARD))) ||                          // Guard page and executable. (MEM_PRIVATE && PAGE_EXECUTE | PAGE_GUARD)
-            (non_shared && (mbi.Protect == (PAGE_EXECUTE_READ | PAGE_GUARD))) ||                     // Guard page, executable, and read-only. (MEM_PRIVATE && PAGE_EXECUTE_READ | PAGE_GUARD)
-            ((non_shared || shared) && (mbi.Protect == (PAGE_EXECUTE_READWRITE | PAGE_GUARD))) ||                    // Guard page, executable, and read/write. (including shared)
-            (non_shared && (mbi.Protect == (PAGE_EXECUTE_WRITECOPY | PAGE_GUARD))) ||                // Guard page, executable, and copy-on-write. (MEM_PRIVATE && PAGE_EXECUTE_WRITECOPY | PAGE_GUARD)
-            (non_shared && (mbi.Protect == (PAGE_EXECUTE | PAGE_NOCACHE | PAGE_GUARD))) ||           // Non-cacheable, guard page, and executable. (MEM_PRIVATE && PAGE_EXECUTE | PAGE_NOCACHE | PAGE_GUARD)
-            (non_shared && (mbi.Protect == (PAGE_EXECUTE_READ | PAGE_NOCACHE | PAGE_GUARD))) ||      // Non-cacheable, guard page, executable, and read-only. (MEM_PRIVATE && PAGE_EXECUTE_READ | PAGE_NOCACHE | PAGE_GUARD)
-            ((non_shared || shared) && (mbi.Protect == (PAGE_EXECUTE_READWRITE | PAGE_NOCACHE | PAGE_GUARD)))     // Non-cacheable, guard page, executable, and read/write. (including shared)
-            ;   // Non-cacheable, guard page, executable, and copy-on-write. (MEM_PRIVATE && PAGE_EXECUTE_WRITECOPY | PAGE_NOCACHE | PAGE_GUARD)
+        switch (protection) 
+        {
+            case 6:  // Executable and read/write.
+            case 14: // Non-cacheable, executable, and read/write.
+            case 22: // Guard page, executable, and read/write.
+            case 30: // Non-cacheable, guard page, executable, and read/write.
+                return true;
+            default:
+                return false;
+        }
     }
 
-    auto make_report(void* addr) -> types::report
+    auto generate_report(void* addr) -> types::report
     {
         MEMORY_BASIC_INFORMATION mbi;
-        auto mbi_status = sys(NTSTATUS, NtQueryVirtualMemory).call(proc_handle, addr, MemoryBasicInformation, &mbi, sizeof(mbi), nullptr);
+        const auto mbi_status = sys(NTSTATUS, NtQueryVirtualMemory).call(proc_handle, addr, MemoryBasicInformation, &mbi, sizeof(mbi), nullptr);
 
         MEMORY_REGION_INFORMATION mri;
-        auto mri_status = sys(NTSTATUS, NtQueryVirtualMemory).call(proc_handle, addr, MemoryRegionInformation, &mri, sizeof(mri), nullptr);
+        const auto mri_status = sys(NTSTATUS, NtQueryVirtualMemory).call(proc_handle, addr, MemoryRegionInformation, &mri, sizeof(mri), nullptr);
 
         types::report report = {};
 
@@ -75,102 +93,79 @@ class implants_scanner
 
     auto full_scan() -> types::report_list
     {
-        auto mod = util::get_remote_module_handle(pid);
-        MODULEINFO mod_info;
-
-        const auto status = fn(K32GetModuleInformation).get()(proc_handle, mod, &mod_info, sizeof(mod_info)); // replace with something of ntapi
-        if (!status) {
-            std::cout << encrypt("K32GetModuleInformation failed with status: 0x") << fn(GetLastError).get()() << std::endl;
-            return {};
-        }
-
-        // get minimum/maximum usermode address
-        SYSTEM_BASIC_INFORMATION sbi;
-        auto ntqsi_status = sys(NTSTATUS, NtQuerySystemInformation).call(SystemBasicInformation, &sbi, sizeof(sbi), nullptr);
-        if (!NT_SUCCESS(ntqsi_status)) {
-            std::cout << encrypt("ntqsi on sbi fail with status: 0x ") << status << std::endl;
-            return {};
-        }
-
-        auto curr_addr = sbi.MinimumUserModeAddress;
-        const auto max_addr = sbi.MaximumUserModeAddress;
-        MEMORY_BASIC_INFORMATION mbi;
-
-        while (curr_addr < max_addr)
+        PMEMORY_WORKING_SET_INFORMATION wsi = nullptr;
+        const auto wsi_status = util::mem::get_proc_working_set_info(proc_handle, &wsi);
+        if (!NT_SUCCESS(wsi_status)) 
         {
-            const auto mbi_status = sys(NTSTATUS, NtQueryVirtualMemory).call(proc_handle, reinterpret_cast<void*>(curr_addr), MemoryBasicInformation, &mbi, sizeof(mbi), nullptr);
-            if (!NT_SUCCESS(mbi_status)) {
-                std::cout << encrypt("ntqvm on mbi fail with status: 0x") << status << std::endl;
-                return {};
-            }
+            std::cerr << encrypt("Failed to get working set information for process") << std::endl;
+            return {};
+        }
 
-            if (mbi.State != MEM_COMMIT) {
-                curr_addr = reinterpret_cast<uintptr_t>(mbi.BaseAddress) + mbi.RegionSize;
-                continue;
-            }
+        for (auto i = 0; i < wsi->NumberOfEntries; i++)
+        {
+            const auto current_address = wsi->WorkingSetInfo[i].VirtualPage << 12;
+            const auto protection = wsi->WorkingSetInfo[i].Protection;
+            const auto shared = wsi->WorkingSetInfo[i].Shared;
 
-            if (curr_addr >= (reinterpret_cast<uintptr_t>(mod_info.lpBaseOfDll)) && curr_addr <= (reinterpret_cast<uintptr_t>(mod_info.lpBaseOfDll) + mod_info.SizeOfImage)) { // skip main module exe range
-                curr_addr = reinterpret_cast<uintptr_t>(mbi.BaseAddress) + mbi.RegionSize;
-                continue;
-            }
+            //std::cout << "curr address: 0x" << std::hex << current_address << std::endl;
 
-            std::cout << encrypt("current address: 0x") << std::hex << curr_addr << std::endl;
+            if (is_executable_memory(protection, shared)) 
+            {
+                std::cout << "\033[31mExecutable Memory at Address: 0x" << std::hex << current_address << "\033[0m" << std::endl;
+
+                auto report = generate_report(reinterpret_cast<void*>(current_address));
+                const auto found_signature = signatures::find_dll_signatures(proc_handle, report);
+                const auto found_packer = signatures::find_packer_signatures(proc_handle, report);
+                if (found_signature || found_packer || report.pageguard_or_noaccess) {
+
+                    report.valid_header = util::mem::validate_header(proc_handle, report);
+                    malicious_regions.push_back(report);
+                }
+            }
 
             auto unsigned_module_detection = [&]() -> void
             {
+                MEMORY_MAPPED_FILE_NAME_INFORMATION mfn;
+                const auto mmfni_status = sys(NTSTATUS, NtQueryVirtualMemory).call(proc_handle, reinterpret_cast<void*>(current_address), MemoryMappedFilenameInformation, &mfn, sizeof(mfn), nullptr);
 
-                if (mbi.AllocationProtect == PAGE_EXECUTE_WRITECOPY) 
+                if (NT_SUCCESS(mmfni_status)) 
                 {
-                    MEMORY_MAPPED_FILE_NAME_INFORMATION mfn;
+                    const auto file_name = util::str::device_path_to_dos_path(util::str::wstring_to_string(mfn.Buffer) );
+                    if (util::str::ends_with_dll(file_name)) 
+                    {
+                        module_info mod = {};
+                        mod.dll_path = util::str::string_to_wstring(file_name);
+                        mod.address = reinterpret_cast<void*>(current_address);
 
-                    const auto status = sys(NTSTATUS, NtQueryVirtualMemory).call(proc_handle, reinterpret_cast<void*>(curr_addr), MemoryMappedFilenameInformation, &mfn, sizeof(mfn), nullptr);
-                    if (NT_SUCCESS(status)) {
-
-                        std::string file_name = util::device_path_to_dos_path(util::wstring_to_string(mfn.Buffer));
-
-                        if (!verify_dll(util::string_to_wstring(file_name).c_str())) {
-                            auto report = make_report(reinterpret_cast<void*>(curr_addr));
-                            report.dll_path = file_name;
-
-                            signatures::find_packer_signatures(proc_handle, report);
-
-                            report.valid_header = util::found_header(proc_handle, report);
-
-                            malicious_regions.push_back(report);
-
-                            std::cout << encrypt("unsigned module loaded: ") << report.dll_path.value() << std::endl;
-
-                        }
+                        module_path_list.push_back(mod);
                     }
                 }
-
             };
 
             unsigned_module_detection();
+                
+        }
 
-            auto scan_executable_pages = [&]()
+        std::cout << std::endl << encrypt("Finished Scanning Executable Memory, Verifying Loaded Modules:") << std::endl << std::endl;
+
+        if (!module_path_list.empty()) 
+        {
+            report::remove_duplicates(module_path_list);
+
+            for (const auto& module : module_path_list) 
             {
-
-                if (is_executable_memory(mbi))
+                std::wcout << module.dll_path << std::endl;
+                if (!verify_dll(module.dll_path))
                 {
-                    auto report = make_report(mbi.BaseAddress);
+                    auto report = generate_report(reinterpret_cast<void*>(module.address));
+                    report.dll_path = util::str::wstring_to_string(module.dll_path);
+                    signatures::find_packer_signatures(proc_handle, report);
+                    report.valid_header = util::mem::validate_header(proc_handle, report);
+                    malicious_regions.push_back(report);
 
-                    bool found_signature = signatures::find_dll_signatures(proc_handle, report);
-                    bool found_packer = signatures::find_packer_signatures(proc_handle, report);
-                    if (found_signature || found_packer || report.pageguard_or_noaccess) {
-
-                        report.valid_header = util::found_header(proc_handle, report);
-
-                        malicious_regions.push_back(report);
-                    }
-           
+                    std::cout << std::endl << encrypt("\033[31mUnsigned Module Loaded : ") << report.dll_path.value() << "\033[0m" << std::endl << std::endl;
                 }
-            };
-
-            scan_executable_pages();
-
-            curr_addr = reinterpret_cast<uintptr_t>(mbi.BaseAddress) + mbi.RegionSize;
-
+            }
         }
 
         return malicious_regions;
