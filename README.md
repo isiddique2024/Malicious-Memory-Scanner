@@ -8,8 +8,9 @@ The scanner takes the Process ID of the process you want to scan as a command-li
 ## Features
 
 - **Command-Line Interface**: Simple CLI for specifying the process ID to scan.
-- **Signature Scanning**: Scans RWX (Read-Write-Execute) regions for known malicious signatures.
+- **Signature Scanning**: Scans executable regions for known malicious signatures.
 - **Unverified Module Reporting**: Any loaded module without a valid signature will be reported.
+- **Advanced Reporting**: Advanced details such as the Allocation Base, Base Address, Region Size, Commit Size, Found Signatures, etc.
 - **Memory Dumps**: Dumps detected malicious implants into a folder called "malicious_dumps"
 
 ## Usage
@@ -17,7 +18,6 @@ The scanner takes the Process ID of the process you want to scan as a command-li
     scanner.exe <PID> 
 
 ## Planned Features
-
-- **Detailed Reporting**: Currently the reporting only returns the malicious base address and region size, soon I will expand on that to include more detailed reporting
-- **Packed PE Detection**: If implants utilize packers such as VMProtect and Themida it will be included in the detailed reporting.
+- **Asynchronous Multi-process Scanning**: Currently the scanner synchronously scans 1 process, soon it will be multi-process and asynchronous.
+- **IAT Lookup**: If the executable region has an IAT/EAT (Import Address Table/Export Address Table) it will be present on the scan report.
 - **Quick Scan**: Currently the scanner iterates through all memory regions for malicious implants, this can be quite time consuming especially on larger applications. I plan to implement a quick scan option to speed up the scanning process.
