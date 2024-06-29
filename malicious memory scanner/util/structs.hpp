@@ -367,7 +367,6 @@ typedef struct _OBJECT_ATTRIBUTES
     PVOID SecurityQualityOfService;
 } OBJECT_ATTRIBUTES, * POBJECT_ATTRIBUTES;
 
-
 typedef enum _MEMORY_INFORMATION_CLASS
 {
     MemoryBasicInformation, // MEMORY_BASIC_INFORMATION
@@ -376,7 +375,6 @@ typedef enum _MEMORY_INFORMATION_CLASS
     MemoryRegionInformation, // MEMORY_REGION_INFORMATION
     MemoryWorkingSetExInformation, // MEMORY_WORKING_SET_EX_INFORMATION
     MemorySharedCommitInformation // MEMORY_SHARED_COMMIT_INFORMATION
-
 }MEMORY_INFORMATION_CLASS;
 
 #define _MAX_OBJECT_NAME 1024/sizeof(WCHAR)
@@ -435,8 +433,7 @@ typedef struct _MEMORY_WORKING_SET_INFORMATION
     MEMORY_WORKING_SET_BLOCK WorkingSetInfo[1];
 } MEMORY_WORKING_SET_INFORMATION, * PMEMORY_WORKING_SET_INFORMATION;
 
-extern "C" NTSTATUS NTAPI NtQueryInformationProcess
-(
+NTSYSAPI NTSTATUS NTAPI NtQueryInformationProcess(
     IN HANDLE               ProcessHandle,
     IN PROCESSINFOCLASS ProcessInformationClass,
     OUT PVOID               ProcessInformation,
@@ -444,30 +441,26 @@ extern "C" NTSTATUS NTAPI NtQueryInformationProcess
     OUT PULONG              ReturnLength
 );
 
-
-extern "C" NTSTATUS NTAPI NtQuerySystemInformation(
+NTSYSAPI NTSTATUS NTAPI NtQuerySystemInformation(
     IN SYSTEM_INFORMATION_CLASS SystemInformationClass,
     OUT PVOID               SystemInformation,
     IN ULONG                SystemInformationLength,
     OUT PULONG              ReturnLength OPTIONAL
 );
 
-
-extern "C" NTSTATUS NTAPI NtOpenProcess(
+NTSYSAPI NTSTATUS NTAPI NtOpenProcess(
     OUT PHANDLE ProcessHandle,
     IN ACCESS_MASK DesiredAccess,
     IN POBJECT_ATTRIBUTES ObjectAttributes,
     IN PCLIENT_ID ClientId
 );
 
-
-extern "C" NTSTATUS NTAPI NtClose
+NTSYSAPI NTSTATUS NTAPI NtClose
 (
     IN HANDLE Handle
 );
 
-
-extern "C" NTSTATUS NTAPI NtQueryVirtualMemory
+NTSYSAPI NTSTATUS NTAPI NtQueryVirtualMemory
 (
     IN HANDLE ProcessHandle,
     IN PVOID BaseAddress,
@@ -477,8 +470,7 @@ extern "C" NTSTATUS NTAPI NtQueryVirtualMemory
     OUT PSIZE_T ResultLength OPTIONAL
 );
 
-
-extern "C" NTSTATUS NTAPI NtReadVirtualMemory(
+NTSYSAPI NTSTATUS NTAPI NtReadVirtualMemory(
     HANDLE ProcessHandle,
     PVOID BaseAddress,
     PVOID Buffer,
@@ -486,37 +478,37 @@ extern "C" NTSTATUS NTAPI NtReadVirtualMemory(
     PULONG NumberOfBytesRead
 );
 
-extern "C" NTSTATUS NTAPI NtDelayExecution(
+NTSYSAPI NTSTATUS NTAPI NtDelayExecution(
     IN BOOLEAN Alertable,
     IN PLARGE_INTEGER DelayInterval
 );
 
-extern "C" BOOLEAN NTAPI RtlDosPathNameToNtPathName_U(
+NTSYSAPI BOOLEAN NTAPI RtlDosPathNameToNtPathName_U(
     _In_ PCWSTR DosFileName,
     _Out_ PUNICODE_STRING NtFileName,
     _Out_opt_ PWSTR* FilePart,
-    _Reserved_ PVOID Reserved);
+    _Reserved_ PVOID Reserved
+);
 
-extern "C" {
-    NTSYSAPI VOID NTAPI RtlInitUnicodeString(_Out_ PUNICODE_STRING DestinationString, _In_opt_ PCWSTR SourceString);
-}
+NTSYSAPI VOID NTAPI RtlInitUnicodeString(
+    _Out_ PUNICODE_STRING DestinationString, 
+    _In_opt_ PCWSTR SourceString
+);
 
-extern "C" {VOID NTAPI RtlFreeUnicodeString(_In_ PUNICODE_STRING UnicodeString);
-}
+NTSYSAPI VOID NTAPI RtlFreeUnicodeString(
+    _In_ PUNICODE_STRING UnicodeString
+);
 
-
-extern "C" {
-    NTSTATUS NTAPI NtOpenFile(
+NTSYSAPI NTSTATUS NTAPI NtOpenFile(
     _Out_ PHANDLE FileHandle,
     _In_ ACCESS_MASK DesiredAccess,
     _In_ POBJECT_ATTRIBUTES ObjectAttributes,
     _Out_ PIO_STATUS_BLOCK IoStatusBlock,
     _In_ ULONG ShareAccess,
-    _In_ ULONG OpenOptions);
-}
+    _In_ ULONG OpenOptions
+);
 
-
-extern "C" {NTSYSAPI NTSTATUS NTAPI NtCreateFile(
+NTSYSAPI NTSTATUS NTAPI NtCreateFile(
     PHANDLE            FileHandle,
     ACCESS_MASK        DesiredAccess,
     POBJECT_ATTRIBUTES ObjectAttributes,
@@ -529,7 +521,6 @@ extern "C" {NTSYSAPI NTSTATUS NTAPI NtCreateFile(
     PVOID              EaBuffer,
     ULONG              EaLength
 );
-}
 
 
 

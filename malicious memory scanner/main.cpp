@@ -5,7 +5,7 @@ int main(int argc, char* argv[])
 {
     if (argc != 2)
     {
-        std::cerr << "Usage: " << argv[0] << " <PID>" << std::endl;
+        std::cerr << encrypt("Usage: ") << argv[0] << encrypt(" <PID>") << std::endl;
         return 1;
     }
 
@@ -20,6 +20,8 @@ int main(int argc, char* argv[])
         std::cerr << encrypt("Failed to open process on PID: ") << pid << encrypt(" , Error Code: ") << status << std::endl;
         return 0;
     }
+
+    imp<HMODULE>("LoadLibraryA", "Wintrust.dll"); // load Wintrust.dll to use for signature verification later
 
     util::console::enable_console_color_support();
 
@@ -44,7 +46,10 @@ int main(int argc, char* argv[])
     report::print_malicious_regions(malicious_data);
     report::dump_malicious_regions(proc_handle, pid, malicious_data);
 
-    sys(NTSTATUS, NtClose).call(proc_handle);
+    sys<NTSTATUS>(
+        "NtClose",
+        proc_handle
+    );
 
     return 0;
 }

@@ -2,14 +2,24 @@
 
 namespace types 
 {
-	struct report {
-		MEMORY_BASIC_INFORMATION mbi;
-		MEMORY_REGION_INFORMATION mri;
+	struct report 
+	{
+		struct
+		{
+			MEMORY_BASIC_INFORMATION mbi;
+			MEMORY_REGION_INFORMATION mri;
+			bool pageguard_or_noaccess;
+		}memory_info;
+
+		struct
+		{
+			std::vector<std::string> found_signatures;
+			std::optional<std::string> packed_with;
+			bool valid_header;
+			bool valid_iat;
+		}pe;
+
 		std::optional<std::string> dll_path;
-		std::vector<std::string> found_signatures;
-		std::optional<std::string> packed_with;
-		bool valid_header;
-		bool pageguard_or_noaccess;
 	};
 
 	using report_list = std::vector<report>;

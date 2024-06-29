@@ -35,9 +35,6 @@
     <ClInclude Include="stdafx.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="util\li.hpp">
-      <Filter>Header Files\util</Filter>
-    </ClInclude>
     <ClInclude Include="util\shadow_syscall.hpp">
       <Filter>Header Files\util</Filter>
     </ClInclude>

@@ -20,7 +20,6 @@
 #include "util/structs.hpp"
 #include "util/encrypt.hpp"
 #include "util/shadow_syscall.hpp"
-#include "util/li.hpp"
 #include "scanner/types.hpp"
 #include "util/util.hpp"
 #include "scanner/signatures.hpp"

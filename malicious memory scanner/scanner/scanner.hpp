@@ -39,15 +39,31 @@ class implants_scanner
     auto generate_report(void* addr) -> types::report
     {
         MEMORY_BASIC_INFORMATION mbi;
-        const auto mbi_status = sys(NTSTATUS, NtQueryVirtualMemory).call(proc_handle, addr, MemoryBasicInformation, &mbi, sizeof(mbi), nullptr);
+        const auto mbi_status = sys<NTSTATUS>(
+            "NtQueryVirtualMemory", 
+            proc_handle, 
+            addr, 
+            MemoryBasicInformation, 
+            &mbi, 
+            sizeof(mbi), 
+            nullptr
+        );
 
         MEMORY_REGION_INFORMATION mri;
-        const auto mri_status = sys(NTSTATUS, NtQueryVirtualMemory).call(proc_handle, addr, MemoryRegionInformation, &mri, sizeof(mri), nullptr);
+        const auto mri_status = sys<NTSTATUS>(
+            "NtQueryVirtualMemory", 
+            proc_handle, 
+            addr, 
+            MemoryRegionInformation, 
+            &mri, 
+            sizeof(mri), 
+            nullptr
+        );
 
         types::report report = {};
 
-        report.mbi = mbi;
-        report.mri = mri;
+        report.memory_info.mbi = mbi;
+        report.memory_info.mri = mri;
 
         return report;
     }
@@ -76,14 +92,17 @@ class implants_scanner
 
             if (util::mem::is_executable(protection, shared)) 
             {
-                std::cout << "\033[31mExecutable Memory at Address: 0x" << std::hex << current_address << "\033[0m" << std::endl;
+                std::cout << encrypt("\033[31mExecutable Memory at Address: 0x") << std::hex << current_address << encrypt("\033[0m") << std::endl;
 
                 auto report = generate_report(reinterpret_cast<void*>(current_address));
+
                 const auto found_signature = signatures::find_dll_signatures(proc_handle, report);
                 const auto found_packer = signatures::find_packer_signatures(proc_handle, report);
-                if (found_signature || found_packer || report.pageguard_or_noaccess) {
+                const auto pageguard_or_noaccess = report.memory_info.pageguard_or_noaccess;
 
-                    report.valid_header = util::mem::validate_header(proc_handle, report);
+                if (found_signature || found_packer || pageguard_or_noaccess) {
+
+                    report.pe.valid_header = util::mem::validate_header(proc_handle, report);
                     malicious_regions.push_back(report);
                 }
             }
@@ -91,7 +110,15 @@ class implants_scanner
             auto unsigned_module_detection = [&]() -> void
             {
                 MEMORY_MAPPED_FILE_NAME_INFORMATION mfn;
-                const auto mmfni_status = sys(NTSTATUS, NtQueryVirtualMemory).call(proc_handle, reinterpret_cast<void*>(current_address), MemoryMappedFilenameInformation, &mfn, sizeof(mfn), nullptr);
+                const auto mmfni_status = sys<NTSTATUS>(
+                    "NtQueryVirtualMemory", 
+                    proc_handle, 
+                    reinterpret_cast<void*>(current_address), 
+                    MemoryMappedFilenameInformation, 
+                    &mfn, 
+                    sizeof(mfn), 
+                    nullptr
+                );
 
                 if (NT_SUCCESS(mmfni_status)) 
                 {
@@ -120,12 +147,12 @@ class implants_scanner
             for (const auto& module : module_path_list) 
             {
                 std::wcout << module.dll_path << std::endl;
-                if (!verify_dll(module.dll_path))
+                if (!verification::verify_dll(module.dll_path))
                 {
                     auto report = generate_report(reinterpret_cast<void*>(module.address));
                     report.dll_path = util::str::wstring_to_string(module.dll_path);
                     signatures::find_packer_signatures(proc_handle, report);
-                    report.valid_header = util::mem::validate_header(proc_handle, report);
+                    report.pe.valid_header = util::mem::validate_header(proc_handle, report);
                     malicious_regions.push_back(report);
 
                     std::cout << std::endl << encrypt("\033[31mUnsigned Module Loaded : ") << report.dll_path.value() << "\033[0m" << std::endl << std::endl;

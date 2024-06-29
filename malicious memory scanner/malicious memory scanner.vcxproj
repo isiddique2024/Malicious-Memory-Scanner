@@ -131,7 +131,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalOptions>/IGNORE:4006 %(AdditionalOptions)</AdditionalOptions>
       <UACExecutionLevel>RequireAdministrator</UACExecutionLevel>
-      <AdditionalDependencies>ntdll.lib;$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>kernel32.lib; ntdll.lib;Wintrust.lib;$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -141,7 +141,6 @@
     <ClInclude Include="scanner\report.hpp" />
     <ClInclude Include="scanner\signatures.hpp" />
     <ClInclude Include="util\encrypt.hpp" />
-    <ClInclude Include="util\li.hpp" />
     <ClInclude Include="scanner\scanner.hpp" />
     <ClInclude Include="util\shadow_syscall.hpp" />
     <ClInclude Include="stdafx.h" />
