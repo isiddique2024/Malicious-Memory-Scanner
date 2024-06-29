@@ -223,13 +223,13 @@ namespace util
             {
                 if (status == 0x8000000D)
                 {
-                    std::cerr << encrypt("Failed to read memory at address: 0x") << std::hex << report.memory_info.mri.AllocationBase
-                        << encrypt(", PAGE_GUARD or PAGE_NOACCESS Found") << std::endl;
+                    std::cerr << encrypt("\033[31mFailed to read memory at address: 0x") << std::hex << report.memory_info.mri.AllocationBase
+                        << encrypt(", PAGE_GUARD or PAGE_NOACCESS Found\033[0m") << std::endl;
                     report.memory_info.pageguard_or_noaccess = true;
                     return 0;
                 }
 
-                std::cerr << encrypt("Failed to read memory at address: 0x") << std::hex << report.memory_info.mri.AllocationBase
+                std::cerr << encrypt("\033[31mFailed to read memory at address: 0x\033[0m") << std::hex << report.memory_info.mri.AllocationBase
                     << encrypt(", Error Code: ") << status << std::endl;
 
                 return 0;

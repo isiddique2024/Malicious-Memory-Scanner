@@ -40,6 +40,8 @@ namespace signatures {
 
     __forceinline auto find_packer_signatures(void* proc_handle, types::report& report) -> bool 
     {
+        const auto base = report.memory_info.mri.AllocationBase;
+
         for (const auto& [type, signature] : packer_signatures)
         {
             const auto pattern_found = util::mem::ida_pattern_scan(proc_handle, report, signature.c_str());
@@ -48,7 +50,7 @@ namespace signatures {
             {
                 report.pe.packed_with = type;
 
-                std::cout << encrypt("0x") << std::hex << report.memory_info.mri.AllocationBase << encrypt(" packed with : ") << report.pe.packed_with.value() << std::endl;
+                std::cout << encrypt("0x") << std::hex << base << encrypt(" packed with : ") << type << std::endl;
 
                 return true;
             }

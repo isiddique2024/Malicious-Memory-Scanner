@@ -1,15 +1,16 @@
 #pragma once
 namespace report 
 {
+
     auto remove_duplicates(auto& report) -> void
     {
         auto compare = [](const auto& lhs, const auto& rhs) {
-            return lhs.dll_path < rhs.dll_path;
-        };
+            return lhs.memory_info.mbi.AllocationBase < rhs.memory_info.mbi.AllocationBase;
+            };
 
         auto equal = [](const auto& lhs, const auto& rhs) {
-            return lhs.dll_path == rhs.dll_path;
-        };
+            return lhs.memory_info.mbi.AllocationBase == rhs.memory_info.mbi.AllocationBase;
+            };
 
         std::sort(report.begin(), report.end(), compare);
         auto last = std::unique(report.begin(), report.end(), equal);
@@ -61,7 +62,12 @@ namespace report
 
         for (const auto& region : malicious_regions) 
         {
-            const auto base_address = region.memory_info.mbi.AllocationBase;
+            if (region.memory_info.pageguard_or_noaccess) {
+                std::cout << "Skipping 0x" << std::hex << region.memory_info.mbi.AllocationBase << " memory dump due to PAGE_GUARD/PAGE_NOACCESS flags" << std::endl;
+                continue;
+            }
+
+            const auto base = region.memory_info.mbi.AllocationBase;
             const auto region_size = region.memory_info.mri.CommitSize;
             std::vector<char> buffer(region_size);
             unsigned long bytes_read;
@@ -69,7 +75,7 @@ namespace report
             const auto status = sys<NTSTATUS>(
                 "NtReadVirtualMemory", 
                 proc_handle, 
-                reinterpret_cast<void*>(base_address), 
+                reinterpret_cast<void*>(base),
                 buffer.data(), 
                 region_size, 
                 &bytes_read
@@ -77,7 +83,7 @@ namespace report
 
             if (!NT_SUCCESS(status)) 
             {
-                std::cerr << encrypt("Failed to read memory at address: 0x") << std::hex << base_address
+                std::cerr << encrypt("Failed to read memory at address: 0x") << std::hex << base
                     << encrypt(" Error: ") << status << std::endl;
                 continue;
             }
@@ -85,7 +91,9 @@ namespace report
             const auto file_name = std::string(dir_name) + encrypt("/").decrypt() 
                 + encrypt("pid_").decrypt() + std::to_string(pid) + encrypt("_dmp_").decrypt()
                 + std::to_string(region_idx) + encrypt(".bin").decrypt();
+
             std::ofstream dump_file(file_name, std::ios::binary);
+
             if (!dump_file.is_open()) {
                 std::cerr << encrypt("Failed to open dump file: ").decrypt() << file_name << std::endl;
                 continue;
@@ -94,6 +102,7 @@ namespace report
             dump_file.write(buffer.data(), bytes_read);
             dump_file.close();
 
+            std::cout << encrypt("Dumped Memory to Path: ") << file_name << std::endl;
             region_idx++;
         }
     }
@@ -131,7 +140,7 @@ namespace report
                     if (&sig != &found_signatures.back())
                         std::cout << encrypt(", ");
                 }
-                std::cout << encrypt(" }") << std::endl;
+                std::cout << encrypt("}") << std::endl;
             }
 
             if (packed_with.has_value()) {

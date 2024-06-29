@@ -13,6 +13,10 @@ int main(int argc, char* argv[])
 
     void* proc_handle;
 
+    imp<HMODULE>("LoadLibraryA", "ntdll.dll");      // load ntdll.dll
+    imp<HMODULE>("LoadLibraryA", "Kernel32.dll");   // load Kernel32.dll
+    imp<HMODULE>("LoadLibraryA", "Wintrust.dll");   // load Wintrust.dll to use for signature verification later
+
     const auto status = util::proc::open_process(pid, proc_handle);
 
     if (!NT_SUCCESS(status)) 
@@ -20,8 +24,6 @@ int main(int argc, char* argv[])
         std::cerr << encrypt("Failed to open process on PID: ") << pid << encrypt(" , Error Code: ") << status << std::endl;
         return 0;
     }
-
-    imp<HMODULE>("LoadLibraryA", "Wintrust.dll"); // load Wintrust.dll to use for signature verification later
 
     util::console::enable_console_color_support();
 
@@ -35,7 +37,7 @@ int main(int argc, char* argv[])
         return 0;
     }
 
-    report::remove_duplicates(malicious_data); // removes duplicates for same dll path
+    report::remove_duplicates(malicious_data); // removes duplicates for same AllocationBase
 
     std::cout << std::endl << encrypt("Done Scanning: ") <<
         (encrypt("Number of Potentially Malicious Regions Found: \033[31m").decrypt() + std::to_string(malicious_data.size()))

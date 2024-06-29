@@ -120,16 +120,26 @@ class implants_scanner
                     nullptr
                 );
 
-                if (NT_SUCCESS(mmfni_status)) 
+                if (NT_SUCCESS(mmfni_status))
                 {
-                    const auto file_name = util::str::device_path_to_dos_path(util::str::wstring_to_string(mfn.Buffer) );
-                    if (util::str::ends_with_dll(file_name)) 
+                    const auto file_name = util::str::device_path_to_dos_path(util::str::wstring_to_string(mfn.Buffer));
+                    const auto wfile_name = util::str::string_to_wstring(file_name);
+                    if (util::str::ends_with_dll(file_name))
                     {
-                        module_info mod = {};
-                        mod.dll_path = util::str::string_to_wstring(file_name);
-                        mod.address = reinterpret_cast<void*>(current_address);
+                        // dont add to module_path_list if it already exists in there
+                        auto it = std::find_if(module_path_list.begin(), module_path_list.end(),
+                            [&wfile_name](const auto& mod) {
+                                return mod.dll_path == wfile_name;
+                            }
+                        );
 
-                        module_path_list.push_back(mod);
+                        if (it == module_path_list.end()) {
+                            module_info mod = {};
+                            mod.dll_path = wfile_name;
+                            mod.address = reinterpret_cast<void*>(current_address);
+
+                            module_path_list.push_back(mod);
+                        }
                     }
                 }
             };
@@ -142,8 +152,6 @@ class implants_scanner
 
         if (!module_path_list.empty()) 
         {
-            report::remove_duplicates(module_path_list);
-
             for (const auto& module : module_path_list) 
             {
                 std::wcout << module.dll_path << std::endl;
