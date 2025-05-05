@@ -21,3 +21,12 @@ The scanner takes the Process ID of the process you want to scan as a command-li
 - **Asynchronous Multi-process Scanning**: Currently the scanner synchronously scans 1 process, soon it will be multi-process and asynchronous.
 - **IAT Lookup**: If the executable region has an IAT/EAT (Import Address Table/Export Address Table) it will be present on the scan report.
 - **Quick Scan**: Currently the scanner iterates through all memory regions for malicious implants, this can be quite time consuming especially on larger applications. I plan to implement a quick scan option to speed up the scanning process.
+
+  
+## License
+
+This project is open source and available under the [MIT License](LICENSE).
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
